@@ -1,5 +1,7 @@
 # flackle-selfbot
 
+[![Docs](https://github.com/gaxolotl/flackle-selfbot/actions/workflows/docs.yml/badge.svg)](https://github.com/gaxolotl/flackle-selfbot/actions/workflows/docs.yml)
+
 An unofficial TypeScript client for [Flackle](https://flackle.com), built for Bun.
 
 It speaks Flackle's real HTTP API and realtime gateway directly — no browser
