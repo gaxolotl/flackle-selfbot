@@ -6,7 +6,3 @@ node_modules/
 .DS_Store
 bun.lockb
 tokens.json
-docs/api/
-docs/site/
-.wrangler/
-.dev.vars

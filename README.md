@@ -1,7 +1,5 @@
 # flackle-selfbot
 
-[![Docs](https://github.com/gaxolotl/flackle-selfbot/actions/workflows/docs.yml/badge.svg)](https://github.com/gaxolotl/flackle-selfbot/actions/workflows/docs.yml)
-
 An unofficial TypeScript client for [Flackle](https://flackle.com), built for Bun.
 
 It speaks Flackle's real HTTP API and realtime gateway directly — no browser
@@ -12,68 +10,6 @@ spam, raids, mass DMs, or plan-limit bypassing.
 > not a formal API licence, and it can change. You are responsible for how you
 > use this. Do not use it to harass people, evade moderation, or exceed your
 > plan's limits.
-
-## Documentation
-
-Full guides and an API reference live in [`docs/`](docs/README.md):
-
-- [Getting started](docs/getting-started.md)
-- [Messages](docs/messages.md) and [reactions](docs/reactions.md)
-- [Servers and channels](docs/servers-channels.md)
-- [Members, roles and permissions](docs/members-roles-permissions.md)
-- [Gateway events](docs/gateway.md)
-- [API reference](docs/api-reference.md)
-- [Recipes](docs/recipes.md) and [troubleshooting](docs/troubleshooting.md)
-
-Build the browsable guide site and the TypeDoc reference:
-
-```bash
-bun run docs
-# open docs/site/index.html
-```
-
-### Cloudflare Pages deployment
-
-Every push to `main` builds the docs and deploys them to Cloudflare Pages through
-[`.github/workflows/docs.yml`](.github/workflows/docs.yml). Generated docs are not
-committed; the workflow rebuilds them from the Markdown sources.
-
-The workflow:
-
-1. installs dependencies with Bun,
-2. runs `bun run docs`,
-3. uploads `docs/site` as a build artifact,
-4. creates the `flackle-selfbot-docs` Pages project on first deploy,
-5. publishes `main` to `https://flackle-selfbot-docs.pages.dev`.
-
-Pull requests build and upload the docs but do not deploy. If the Cloudflare
-secrets are missing, the build still succeeds and deployment is skipped with a
-warning.
-
-**One-time Cloudflare setup**
-
-1. In the Cloudflare dashboard, create an API token with
-   **Account → Cloudflare Pages → Edit** permission.
-2. Copy the account ID from the dashboard.
-3. Add the repository secrets:
-
-```bash
-gh secret set CLOUDFLARE_API_TOKEN
-gh secret set CLOUDFLARE_ACCOUNT_ID
-```
-
-4. Push to `main`, or run **Actions → Docs → Run workflow**.
-
-If `flackle-selfbot-docs` is already taken, change the project name in
-`.github/workflows/docs.yml` and `wrangler.toml`.
-
-For a local deploy:
-
-```bash
-bunx wrangler login
-bun run docs
-bunx wrangler pages deploy docs/site --project-name flackle-selfbot-docs
-```
 
 ## Requirements
 
