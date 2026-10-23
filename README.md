@@ -554,6 +554,7 @@ const data = await client.rest.request("GET", "/api/some/unmodelled/route");
 ```ts
 const friends = await client.fetchFriends("search");
 const { incoming, outgoing } = await client.fetchFriendRequests();
+const blocked = await client.fetchBlocked(); // or fetchBlockedUsers()
 
 await client.addFriend("username");
 await client.acceptFriendRequest(requestId);
@@ -562,6 +563,10 @@ await client.removeFriend(userId);
 await client.blockUser(userId);
 await client.unblockUser(userId);
 ```
+
+`fetchBlocked()`/`fetchBlockedUsers()` return the accounts on the signed-in
+account's block list. Blocks are account-wide; `unblockUser(userId)` removes the
+entry.
 
 ## Gateway events
 

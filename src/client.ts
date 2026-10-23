@@ -614,8 +614,18 @@ export class FlackleClient extends TypedEmitter<ClientEvents> {
     return this.rest.get<FriendRequests>("/api/friends/requests");
   }
 
-  fetchBlocked(): Promise<User[]> {
-    return this.rest.get<User[]>("/api/friends/blocked");
+  /** Fetches the accounts the authenticated user has blocked. */
+  async fetchBlocked(): Promise<User[]> {
+    const data = await this.rest.get<
+      User[] | { users?: User[]; blocked?: User[]; blocked_users?: User[] }
+    >("/api/friends/blocked");
+    if (Array.isArray(data)) return data;
+    return data.users ?? data.blocked ?? data.blocked_users ?? [];
+  }
+
+  /** Alias for {@link fetchBlocked}. */
+  fetchBlockedUsers(): Promise<User[]> {
+    return this.fetchBlocked();
   }
 
   async addFriend(username: string): Promise<void> {
@@ -638,10 +648,12 @@ export class FlackleClient extends TypedEmitter<ClientEvents> {
     await this.rest.delete(`/api/friends/${userId}`);
   }
 
+  /** Blocks a user account-wide. */
   async blockUser(userId: Snowflake): Promise<void> {
     await this.rest.post("/api/friends/block", { body: { user_id: userId } });
   }
 
+  /** Removes an account-wide block. */
   async unblockUser(userId: Snowflake): Promise<void> {
     await this.rest.delete(`/api/friends/block/${userId}`);
   }
