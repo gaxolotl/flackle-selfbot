@@ -478,14 +478,61 @@ export class FlackleClient extends TypedEmitter<ClientEvents> {
     await this.rest.delete(reactionPath(target, messageId, emoji));
   }
 
-  /** Fetches every user who reacted with `emoji`. */
+  /**
+   * Removes another user's reaction. Flackle's web client only calls the
+   * `/@me` route, so this per-user route is best-effort: a server may reject
+   * it with 403/404 even when removing your own reaction works.
+   */
+  async unreactUser(
+    target: MessageTarget,
+    messageId: Snowflake,
+    emoji: string,
+    userId: Snowflake,
+  ): Promise<void> {
+    await this.rest.delete(reactionUserPath(target, messageId, emoji, userId));
+  }
+
+  /** Fetches every user who reacted with `emoji`, following pages. */
   async fetchReactions(
     target: MessageTarget,
     messageId: Snowflake,
     emoji: string,
+    options: { pageSize?: number; maxPages?: number } = {},
   ): Promise<User[]> {
-    const page = await this.fetchReactionUsers(target, messageId, emoji);
-    return page.users ?? [];
+    return this.fetchAllReactions(target, messageId, emoji, options);
+  }
+
+  /** Walks the reaction-user list until it is exhausted or `maxPages` is reached. */
+  async fetchAllReactions(
+    target: MessageTarget,
+    messageId: Snowflake,
+    emoji: string,
+    options: { pageSize?: number; maxPages?: number } = {},
+  ): Promise<User[]> {
+    const pageSize = Math.min(100, Math.max(1, Math.floor(options.pageSize ?? 50)));
+    const maxPages = Math.min(1000, Math.max(1, Math.floor(options.maxPages ?? 100)));
+    const users = new Map<string, User>();
+    let after: string | undefined;
+
+    for (let page = 0; page < maxPages; page++) {
+      const result = await this.fetchReactionUsers(target, messageId, emoji, {
+        limit: pageSize,
+        after,
+      });
+      const batch = result.users ?? [];
+
+      for (const user of batch) {
+        if (user?.id) users.set(user.id, user);
+      }
+
+      if (typeof result.total === "number" && users.size >= result.total) break;
+      if (batch.length < pageSize) break;
+      const next = batch[batch.length - 1]?.id;
+      if (!next || next === after) break;
+      after = next;
+    }
+
+    return [...users.values()];
   }
 
   /** Fetches the reaction-user page, including the total count when supplied. */
@@ -493,9 +540,11 @@ export class FlackleClient extends TypedEmitter<ClientEvents> {
     target: MessageTarget,
     messageId: Snowflake,
     emoji: string,
+    options: { limit?: number; after?: string } = {},
   ): Promise<ReactionUsersPage> {
     return this.rest.get<ReactionUsersPage>(
       reactionPath(target, messageId, emoji, false),
+      { query: { limit: options.limit ?? 50, after: options.after } },
     );
   }
 
@@ -1859,4 +1908,13 @@ function reactionPath(
   // The web client scopes guild reactions with `/@me`; DM reactions rely on the
   // session cookie.
   return isGuildTarget(target) ? `${base}/@me` : base;
+}
+
+function reactionUserPath(
+  target: MessageTarget,
+  messageId: Snowflake,
+  emoji: string,
+  userId: Snowflake,
+): string {
+  return `${reactionPath(target, messageId, emoji, false)}/${encodeURIComponent(userId)}`;
 }

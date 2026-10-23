@@ -154,14 +154,22 @@ await client.markRead(target, message.id);
 await client.react(target, message.id, "👍");
 await client.unreact(target, message.id, "👍");
 
-// Who reacted with one emoji (full list)
+// Every user who reacted with one emoji (follows pagination automatically)
 const users = await client.fetchReactions(target, message.id, "👍");
-const { users: everyone, total } = await client.fetchReactionUsers(
-  target,
-  message.id,
-  "👍",
-);
+const page = await client.fetchReactionUsers(target, message.id, "👍", {
+  limit: 50,
+  after: undefined,
+});
+console.log(page.users, page.total);
+
+// Best effort: Flackle's web client only removes /@me reactions, so this
+// per-user route may return 403/404.
+await client.unreactUser(target, message.id, "👍", userId);
 ```
+
+`fetchReactions()` pages with `limit` (default 50, max 100) and `after`, stopping
+when it reaches `total`, gets a short page, or hits `maxPages` (default 100). It
+is therefore safe for polls and giveaways with more than the four-user preview.
 
 Each message also carries a reaction summary, so you can inspect every emoji
 without an extra request:
@@ -173,7 +181,7 @@ for (const reaction of message.reactions ?? []) {
 ```
 
 `reaction.users` is the same short preview the web client renders (up to four
-users); call `fetchReactionUsers()` when you need the complete list.
+users); call `fetchReactions()` when you need the complete list.
 
 Guild reactions are scoped with `/@me`; DM reactions rely on the session cookie,
 matching the web client.
