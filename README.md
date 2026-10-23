@@ -316,16 +316,28 @@ const effective = computePermissions({
 ```
 
 Overwrites are saved with the version returned by the GET; a stale version gives
-HTTP 409 and must be refreshed:
+HTTP 409. `updatePermissionOverwritesWithRetry` fetches a fresh version and
+rebuilds the payload when that happens:
 
 ```ts
-await client.updatePermissionOverwrites(serverId, { channelId }, {
-  version: overwrites.version,
-  permission_synced: overwrites.permission_synced,
+await client.updatePermissionOverwritesWithRetry(serverId, { channelId }, (current) => ({
+  version: current.version,
+  permission_synced: false,
   role_overrides: [{ role_id: roleId, allow: "0", deny: PermissionFlags.SendMessages.toString() }],
-  user_overrides: [],
-});
+  user_overrides: current.user_overrides ?? [],
+}));
 ```
+
+A channel with `permission_synced: true` inherits its category, and channel-specific
+overwrites have no effect. Set `permission_synced: false` when editing them:
+
+```ts
+await client.setChannelPermissionsSynced(serverId, channelId, false); // remove sync
+await client.setChannelPermissionsSynced(serverId, channelId, true);  // restore sync
+```
+
+Removing sync copies the category's role and user overrides into the channel so
+its effective permissions stay the same.
 
 `PermissionFlags` has every named bit from the web client. `ALL_PERMISSIONS` is
 the full 33-bit field used by the server; `KNOWN_PERMISSIONS` is just the named

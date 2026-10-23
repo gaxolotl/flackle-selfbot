@@ -1,4 +1,4 @@
-import { FlackleAuthError, FlackleError } from "./errors.ts";
+import { FlackleAPIError, FlackleAuthError, FlackleError } from "./errors.ts";
 import { Gateway } from "./gateway.ts";
 import { TypedEmitter } from "./events.ts";
 import { RestClient, type RestClientOptions } from "./rest.ts";
@@ -1058,6 +1058,79 @@ export class FlackleClient extends TypedEmitter<ClientEvents> {
     return this.rest.put<PermissionOverwritesResponse>(
       permissionPath(serverId, target),
       { body: payload },
+    );
+  }
+
+  /**
+   * Applies a permission-overwrite change using a fresh version on every try.
+   * Flackle answers 409 when another client changed the permissions between the
+   * GET and PUT, so the mutation is rebuilt from the latest response.
+   */
+  async updatePermissionOverwritesWithRetry(
+    serverId: Snowflake,
+    target: PermissionTarget,
+    update: (current: PermissionOverwritesResponse) => PermissionOverwritesInput,
+    attempts = 3,
+  ): Promise<PermissionOverwritesResponse> {
+    const total = Math.max(1, Math.floor(attempts));
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= total; attempt++) {
+      const current = await this.fetchPermissionOverwrites(serverId, target);
+      try {
+        return await this.updatePermissionOverwrites(serverId, target, update(current));
+      } catch (error) {
+        lastError = error;
+        if (!(error instanceof FlackleAPIError) || !error.isConflict) throw error;
+        if (attempt === total) break;
+        await new Promise((resolve) => setTimeout(resolve, attempt * 75));
+      }
+    }
+
+    throw lastError ?? new FlackleError("Permission overwrite update failed.");
+  }
+
+  /**
+   * Adds or removes a channel's category sync. Removing sync materialises the
+   * category's overrides into the channel so its effective permissions do not
+   * change. Use `updatePermissionOverwritesWithRetry` for a combined edit.
+   */
+  setChannelPermissionsSynced(
+    serverId: Snowflake,
+    channelId: Snowflake,
+    synced: boolean,
+  ): Promise<PermissionOverwritesResponse> {
+    return this.updatePermissionOverwritesWithRetry(
+      serverId,
+      { channelId },
+      (current) => {
+        const materialise = !synced && current.permission_synced === true;
+        const roles = materialise
+          ? (current.category_role_overrides ?? current.role_overrides ?? [])
+          : (current.role_overrides ?? []);
+        const users = materialise
+          ? (current.category_user_overrides ?? current.user_overrides ?? [])
+          : (current.user_overrides ?? []);
+
+        return {
+          version: current.version,
+          permission_synced: synced,
+          role_overrides: roles
+            .filter((entry) => entry.role_id)
+            .map((entry) => ({
+              role_id: String(entry.role_id),
+              allow: entry.allow,
+              deny: entry.deny,
+            })),
+          user_overrides: users
+            .filter((entry) => entry.user_id)
+            .map((entry) => ({
+              user_id: String(entry.user_id),
+              allow: entry.allow,
+              deny: entry.deny,
+            })),
+        };
+      },
     );
   }
 

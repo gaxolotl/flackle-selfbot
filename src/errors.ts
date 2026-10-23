@@ -45,6 +45,11 @@ export class FlackleAPIError extends FlackleError {
     return this.status === 429;
   }
 
+  /** The resource changed since it was fetched (stale version/ETag). */
+  get isConflict(): boolean {
+    return this.status === 409;
+  }
+
   /** The account must re-authenticate (step-up) before this action. */
   get requiresElevation(): boolean {
     return this.code === "elevation_required";
